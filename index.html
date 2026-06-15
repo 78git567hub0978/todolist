@@ -84,9 +84,16 @@
 
     .task-details-input {
       min-height: 96px;
-      padding-left: 30px;
       font-size: 12px;
       font-weight: 400;
+    }
+
+    .form-label {
+      color: #713f12;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     input:focus,
@@ -423,8 +430,10 @@
       </div>
       <div class="modal-body">
         <form id="todo-form">
+          <label class="form-label" for="task-title-input">Title</label>
           <input class="task-title-input" id="task-title-input" type="text" placeholder="Task title" required>
-          <textarea class="task-details-input" id="task-details-input" placeholder="Details"></textarea>
+          <label class="form-label" for="task-details-input">Notes</label>
+          <textarea class="task-details-input" id="task-details-input" placeholder="Notes"></textarea>
           <input id="deadline-input" type="date" required>
           <button id="submit-task-button" type="submit">Add</button>
         </form>
