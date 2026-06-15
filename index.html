@@ -430,7 +430,15 @@
       }
     ];
 
+    const isDateValue = (value) => {
+      return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+    };
+
     const formatDeadline = (value) => {
+      if (!isDateValue(value)) {
+        return "No deadline";
+      }
+
       const date = getDateFromValue(value);
 
       return date.toLocaleDateString("en-US", {
@@ -441,6 +449,10 @@
     };
 
     const getDateFromValue = (value) => {
+      if (!isDateValue(value)) {
+        return null;
+      }
+
       const [year, month, day] = value.split("-").map(Number);
 
       return new Date(year, month - 1, day);
@@ -457,9 +469,17 @@
 
     const isDueToday = (deadlineValue) => deadlineValue === getTodayValue();
 
-    const isOverdue = (deadlineValue) => getDateFromValue(deadlineValue) < getDateFromValue(getTodayValue());
+    const isOverdue = (deadlineValue) => {
+      const deadline = getDateFromValue(deadlineValue);
+
+      return deadline ? deadline < getDateFromValue(getTodayValue()) : false;
+    };
 
     const getDaysRemaining = (deadlineValue) => {
+      if (!isDateValue(deadlineValue)) {
+        return null;
+      }
+
       const today = getDateFromValue(getTodayValue());
       const deadline = getDateFromValue(deadlineValue);
       const millisecondsPerDay = 24 * 60 * 60 * 1000;
@@ -469,6 +489,10 @@
 
     const formatDaysRemaining = (deadlineValue) => {
       const days = getDaysRemaining(deadlineValue);
+
+      if (days === null) {
+        return "";
+      }
 
       if (days === 1) {
         return "1 day";
@@ -488,10 +512,10 @@
     const normalizeReminders = (reminders) => {
       return reminders.map((reminder) => ({
         id: reminder.id || createReminderId(),
-        task: reminder.task,
-        deadline: reminder.deadline,
-        createdDate: reminder.createdDate || getTodayValue(),
-        completedDate: reminder.completed ? reminder.completedDate || getTodayValue() : "",
+        task: reminder.task || "Untitled task",
+        deadline: isDateValue(reminder.deadline) ? reminder.deadline : "",
+        createdDate: isDateValue(reminder.createdDate) ? reminder.createdDate : getTodayValue(),
+        completedDate: reminder.completed ? isDateValue(reminder.completedDate) ? reminder.completedDate : getTodayValue() : "",
         ownerEmail: reminder.ownerEmail || "",
         ownerUid: reminder.ownerUid || "",
         completed: Boolean(reminder.completed)
@@ -639,7 +663,22 @@
           return 1;
         }
 
-        return getDateFromValue(first.deadline) - getDateFromValue(second.deadline);
+        const firstDate = getDateFromValue(first.deadline);
+        const secondDate = getDateFromValue(second.deadline);
+
+        if (!firstDate && !secondDate) {
+          return 0;
+        }
+
+        if (!firstDate) {
+          return 1;
+        }
+
+        if (!secondDate) {
+          return -1;
+        }
+
+        return firstDate - secondDate;
       });
     };
 
