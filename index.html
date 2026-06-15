@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To Do List</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: #1f2933;
+      background: #eef2f7;
+    }
+
+    main {
+      width: 100%;
+      min-height: 100vh;
+      background: #ffffff;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 24px;
+      background: #000080;
+      color: #ffffff;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 0;
+    }
+
+    form[hidden] {
+      display: none;
+    }
+
+    input,
+    button {
+      min-height: 42px;
+      font: inherit;
+      border-radius: 6px;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid #bcccdc;
+      padding: 0 12px;
+      color: #1f2933;
+      background: #ffffff;
+    }
+
+    input:focus {
+      outline: 3px solid rgba(0, 0, 128, 0.22);
+      border-color: #000080;
+    }
+
+    button {
+      border: 0;
+      padding: 0 18px;
+      color: #ffffff;
+      background: #000080;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover {
+      background: #00005f;
+    }
+
+    .view-button {
+      flex: 0 0 auto;
+      border: 1px solid #14532d;
+      background: #166534;
+    }
+
+    .view-button:hover {
+      background: #14532d;
+    }
+
+    .table-wrap {
+      overflow: visible;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      padding: 14px 12px;
+      text-align: left;
+      border-bottom: 4px solid #ffffff;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      font-size: 14px;
+    }
+
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #000080;
+      background: #dbeafe;
+      letter-spacing: 0.08em;
+    }
+
+    th:first-child,
+    td:first-child {
+      width: 30%;
+    }
+
+    th:nth-child(2),
+    td:nth-child(2) {
+      width: 17%;
+    }
+
+    th:nth-child(3),
+    td:nth-child(3) {
+      width: 15%;
+    }
+
+    th:nth-child(4),
+    td:nth-child(4),
+    th:nth-child(5),
+    td:nth-child(5) {
+      width: 15%;
+    }
+
+    .completed-column {
+      text-align: center;
+      white-space: nowrap;
+      width: 8%;
+    }
+
+    th:nth-child(3),
+    th:nth-child(4),
+    th:nth-child(5) {
+      line-height: 1.25;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .today-row {
+      background: #fecaca;
+    }
+
+    .overdue-row {
+      background: #ef4444;
+    }
+
+    .completed-checkbox {
+      width: 18px;
+      height: 18px;
+      min-height: 18px;
+      accent-color: #000080;
+      cursor: pointer;
+    }
+
+    .add-task-button {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 20;
+      width: 64px;
+      height: 64px;
+      min-height: 64px;
+      border-radius: 50%;
+      padding: 0;
+      font-size: 36px;
+      line-height: 1;
+      background: #000080;
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.24);
+    }
+
+    .add-task-button:hover {
+      background: #00005f;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.46);
+    }
+
+    .modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .modal {
+      width: min(420px, 100%);
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px;
+      border-bottom: 1px solid #d9e2ec;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0;
+    }
+
+    .close-button {
+      width: 36px;
+      height: 36px;
+      min-height: 36px;
+      padding: 0;
+      color: #1f2933;
+      background: #eef2f7;
+      border-radius: 50%;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .close-button:hover {
+      background: #d9e2ec;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    @media (max-width: 640px) {
+      form {
+        grid-template-columns: 1fr;
+      }
+
+      th,
+      td {
+        padding: 10px 6px;
+        font-size: 12px;
+      }
+
+      th {
+        font-size: 9px;
+        letter-spacing: 0.04em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>To Do List</h1>
+      <button class="view-button" id="view-button" type="button">Completed Task</button>
+    </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Deadline</th>
+            <th>Days Remaining</th>
+            <th class="completed-only">Date Created</th>
+            <th class="completed-only">Date Completed</th>
+            <th class="completed-column">Completed</th>
+          </tr>
+        </thead>
+        <tbody id="todo-body"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <button class="add-task-button" id="add-task-button" type="button" aria-label="Add task">+</button>
+
+  <div class="modal-backdrop" id="task-modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">Add Task</h2>
+        <button class="close-button" id="close-modal-button" type="button" aria-label="Close add task popup">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="todo-form">
+          <input id="task-input" type="text" placeholder="Task" required>
+          <input id="deadline-input" type="date" required>
+          <button type="submit">Add</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const form = document.querySelector("#todo-form");
+    const taskInput = document.querySelector("#task-input");
+    const deadlineInput = document.querySelector("#deadline-input");
+    const todoBody = document.querySelector("#todo-body");
+    const completedOnlyHeaders = document.querySelectorAll(".completed-only");
+    const viewButton = document.querySelector("#view-button");
+    const addTaskButton = document.querySelector("#add-task-button");
+    const taskModal = document.querySelector("#task-modal");
+    const closeModalButton = document.querySelector("#close-modal-button");
+    const storageKey = "todo-list-reminders";
+    let currentView = "active";
+    const defaultReminders = [
+      {
+        id: "default-german-vocabulary-review",
+        task: "Finish German vocabulary review",
+        deadline: "2026-06-20",
+        createdDate: "2026-06-15",
+        completedDate: "",
+        completed: false
+      },
+      {
+        id: "default-practice-session",
+        task: "Prepare next practice session",
+        deadline: "2026-06-22",
+        createdDate: "2026-06-15",
+        completedDate: "",
+        completed: false
+      }
+    ];
+
+    const formatDeadline = (value) => {
+      const date = getDateFromValue(value);
+
+      return date.toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+      });
+    };
+
+    const getDateFromValue = (value) => {
+      const [year, month, day] = value.split("-").map(Number);
+
+      return new Date(year, month - 1, day);
+    };
+
+    const getTodayValue = () => {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      const day = String(today.getDate()).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    };
+
+    const isDueToday = (deadlineValue) => deadlineValue === getTodayValue();
+
+    const isOverdue = (deadlineValue) => getDateFromValue(deadlineValue) < getDateFromValue(getTodayValue());
+
+    const getDaysRemaining = (deadlineValue) => {
+      const today = getDateFromValue(getTodayValue());
+      const deadline = getDateFromValue(deadlineValue);
+      const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+      return Math.round((deadline - today) / millisecondsPerDay);
+    };
+
+    const formatDaysRemaining = (deadlineValue) => {
+      const days = getDaysRemaining(deadlineValue);
+
+      if (days === 1) {
+        return "1 day";
+      }
+
+      return `${days} days`;
+    };
+
+    const createReminderId = () => {
+      if (window.crypto && window.crypto.randomUUID) {
+        return window.crypto.randomUUID();
+      }
+
+      return `${Date.now()}-${Math.random()}`;
+    };
+
+    const normalizeReminders = (reminders) => {
+      return reminders.map((reminder) => ({
+        id: reminder.id || createReminderId(),
+        task: reminder.task,
+        deadline: reminder.deadline,
+        createdDate: reminder.createdDate || getTodayValue(),
+        completedDate: reminder.completed ? reminder.completedDate || getTodayValue() : "",
+        completed: Boolean(reminder.completed)
+      }));
+    };
+
+    const getReminders = () => {
+      const savedReminders = localStorage.getItem(storageKey);
+
+      if (savedReminders) {
+        const reminders = normalizeReminders(JSON.parse(savedReminders));
+        saveReminders(reminders);
+
+        return reminders;
+      }
+
+      return normalizeReminders(defaultReminders);
+    };
+
+    const saveReminders = (reminders) => {
+      localStorage.setItem(storageKey, JSON.stringify(reminders));
+    };
+
+    const updateReminderCompletion = (reminderId, completed) => {
+      const reminders = getReminders().map((reminder) => {
+        if (reminder.id === reminderId) {
+          return {
+            ...reminder,
+            completed,
+            completedDate: completed ? getTodayValue() : ""
+          };
+        }
+
+        return reminder;
+      });
+
+      saveReminders(reminders);
+      renderReminders();
+    };
+
+    const addReminderRow = (reminder) => {
+      const row = document.createElement("tr");
+      const taskCell = document.createElement("td");
+      const deadlineCell = document.createElement("td");
+      const daysRemainingCell = document.createElement("td");
+      const completedCell = document.createElement("td");
+      const completedCheckbox = document.createElement("input");
+
+      taskCell.textContent = reminder.task;
+      deadlineCell.textContent = formatDeadline(reminder.deadline);
+      daysRemainingCell.textContent = formatDaysRemaining(reminder.deadline);
+      completedCheckbox.type = "checkbox";
+      completedCheckbox.className = "completed-checkbox";
+      completedCheckbox.checked = reminder.completed;
+      completedCheckbox.setAttribute("aria-label", `Mark ${reminder.task} completed`);
+      completedCheckbox.addEventListener("change", () => {
+        updateReminderCompletion(reminder.id, completedCheckbox.checked);
+      });
+      completedCell.className = "completed-column";
+      completedCell.append(completedCheckbox);
+
+      if (isDueToday(reminder.deadline)) {
+        row.classList.add("today-row");
+      }
+
+      if (isOverdue(reminder.deadline)) {
+        row.classList.add("overdue-row");
+      }
+
+      row.dataset.deadline = reminder.deadline;
+      row.append(taskCell, deadlineCell, daysRemainingCell);
+
+      if (currentView === "completed") {
+        const createdDateCell = document.createElement("td");
+        const completedDateCell = document.createElement("td");
+
+        createdDateCell.textContent = formatDeadline(reminder.createdDate);
+        createdDateCell.className = "completed-only";
+        completedDateCell.textContent = reminder.completedDate ? formatDeadline(reminder.completedDate) : "";
+        completedDateCell.className = "completed-only";
+        row.append(createdDateCell, completedDateCell);
+      }
+
+      row.append(completedCell);
+      todoBody.append(row);
+    };
+
+    const sortReminders = (reminders) => {
+      return [...reminders].sort((first, second) => {
+        if (isDueToday(first.deadline) && !isDueToday(second.deadline)) {
+          return -1;
+        }
+
+        if (!isDueToday(first.deadline) && isDueToday(second.deadline)) {
+          return 1;
+        }
+
+        return getDateFromValue(first.deadline) - getDateFromValue(second.deadline);
+      });
+    };
+
+    const renderReminders = () => {
+      const reminders = getReminders();
+      const visibleReminders = reminders.filter((reminder) => {
+        if (currentView === "completed") {
+          return reminder.completed;
+        }
+
+        return !reminder.completed;
+      });
+
+      todoBody.innerHTML = "";
+      sortReminders(visibleReminders).forEach(addReminderRow);
+      viewButton.textContent = currentView === "completed" ? "To Do List" : "Completed Task";
+      completedOnlyHeaders.forEach((header) => {
+        header.hidden = currentView !== "completed";
+      });
+      document.querySelectorAll("td.completed-only").forEach((cell) => {
+        cell.hidden = currentView !== "completed";
+      });
+      addTaskButton.hidden = currentView === "completed";
+      taskModal.hidden = currentView === "completed" || taskModal.hidden;
+    };
+
+    viewButton.addEventListener("click", () => {
+      currentView = currentView === "completed" ? "active" : "completed";
+      taskModal.hidden = true;
+      renderReminders();
+    });
+
+    addTaskButton.addEventListener("click", () => {
+      taskModal.hidden = false;
+      taskInput.focus();
+    });
+
+    closeModalButton.addEventListener("click", () => {
+      taskModal.hidden = true;
+      form.reset();
+    });
+
+    taskModal.addEventListener("click", (event) => {
+      if (event.target === taskModal) {
+        taskModal.hidden = true;
+        form.reset();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !taskModal.hidden) {
+        taskModal.hidden = true;
+        form.reset();
+      }
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const reminders = getReminders();
+
+      reminders.push({
+        id: createReminderId(),
+        task: taskInput.value.trim(),
+        deadline: deadlineInput.value,
+        createdDate: getTodayValue(),
+        completedDate: "",
+        completed: false
+      });
+
+      saveReminders(reminders);
+      taskModal.hidden = true;
+      renderReminders();
+
+      form.reset();
+    });
+
+    renderReminders();
+  </script>
+</body>
+</html>
