@@ -705,7 +705,9 @@
       taskName.className = "task-name";
       editButton.type = "button";
       editButton.className = "edit-task-button";
-      editButton.textContent = "Edit";
+      editButton.textContent = "✎";
+      editButton.setAttribute("aria-label", `Edit ${reminder.task}`);
+      editButton.title = "Edit task";
       editButton.addEventListener("click", () => {
         openEditModal(reminder);
       });
