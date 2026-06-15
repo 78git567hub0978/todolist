@@ -204,6 +204,29 @@
       cursor: pointer;
     }
 
+    .task-cell-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .task-name {
+      min-width: 0;
+    }
+
+    .edit-task-button {
+      min-height: 32px;
+      flex: 0 0 auto;
+      padding: 0 12px;
+      font-size: 12px;
+      background: #334e68;
+    }
+
+    .edit-task-button:hover {
+      background: #243b53;
+    }
+
     .add-task-button {
       position: fixed;
       right: 24px;
@@ -352,7 +375,7 @@
         <form id="todo-form">
           <input id="task-input" type="text" placeholder="Task" required>
           <input id="deadline-input" type="date" required>
-          <button type="submit">Add</button>
+          <button id="submit-task-button" type="submit">Add</button>
         </form>
       </div>
     </section>
@@ -379,6 +402,8 @@
     const form = document.querySelector("#todo-form");
     const taskInput = document.querySelector("#task-input");
     const deadlineInput = document.querySelector("#deadline-input");
+    const submitTaskButton = document.querySelector("#submit-task-button");
+    const modalTitle = document.querySelector("#modal-title");
     const todoBody = document.querySelector("#todo-body");
     const completedOnlyHeaders = document.querySelectorAll(".completed-only");
     const appContent = document.querySelector("#app-content");
@@ -407,6 +432,7 @@
     const remindersCollection = firestoreIsConfigured ? collection(db, "tasks") : null;
     let currentView = "active";
     let currentUser = null;
+    let editingReminderId = null;
     let remindersCache = [];
     let unsubscribeReminders = null;
     let localRemindersMigrated = false;
@@ -532,6 +558,33 @@
       errorMessage.hidden = true;
     };
 
+    const openAddModal = () => {
+      editingReminderId = null;
+      modalTitle.textContent = "Add Task";
+      submitTaskButton.textContent = "Add";
+      form.reset();
+      taskModal.hidden = false;
+      taskInput.focus();
+    };
+
+    const openEditModal = (reminder) => {
+      editingReminderId = reminder.id;
+      modalTitle.textContent = "Edit Task";
+      submitTaskButton.textContent = "Save";
+      taskInput.value = reminder.task;
+      deadlineInput.value = reminder.deadline;
+      taskModal.hidden = false;
+      taskInput.focus();
+    };
+
+    const closeTaskModal = () => {
+      editingReminderId = null;
+      taskModal.hidden = true;
+      form.reset();
+      modalTitle.textContent = "Add Task";
+      submitTaskButton.textContent = "Add";
+    };
+
     const getLocalReminders = () => {
       const savedReminders = localStorage.getItem(storageKey);
 
@@ -606,15 +659,59 @@
       renderReminders();
     };
 
+    const updateReminderDetails = async (reminderId, details) => {
+      remindersCache = remindersCache.map((reminder) => {
+        if (reminder.id === reminderId) {
+          return {
+            ...reminder,
+            ...details
+          };
+        }
+
+        return reminder;
+      });
+      const updatedReminder = remindersCache.find((reminder) => reminder.id === reminderId);
+
+      if (updatedReminder) {
+        pendingReminders.set(reminderId, updatedReminder);
+      }
+
+      renderReminders();
+
+      if (firestoreIsConfigured) {
+        try {
+          await updateDoc(doc(db, "tasks", reminderId), details);
+        } catch (error) {
+          saveLocalReminders(remindersCache);
+          showError(`Task was updated here, but Firestore did not save the edit: ${error.message}`);
+        }
+      } else {
+        saveLocalReminders(remindersCache);
+      }
+    };
+
     const addReminderRow = (reminder) => {
       const row = document.createElement("tr");
       const taskCell = document.createElement("td");
+      const taskCellContent = document.createElement("div");
+      const taskName = document.createElement("span");
+      const editButton = document.createElement("button");
       const deadlineCell = document.createElement("td");
       const daysRemainingCell = document.createElement("td");
       const completedCell = document.createElement("td");
       const completedCheckbox = document.createElement("input");
 
-      taskCell.textContent = reminder.task;
+      taskName.textContent = reminder.task;
+      taskName.className = "task-name";
+      editButton.type = "button";
+      editButton.className = "edit-task-button";
+      editButton.textContent = "Edit";
+      editButton.addEventListener("click", () => {
+        openEditModal(reminder);
+      });
+      taskCellContent.className = "task-cell-content";
+      taskCellContent.append(taskName, editButton);
+      taskCell.append(taskCellContent);
       deadlineCell.textContent = formatDeadline(reminder.deadline);
       daysRemainingCell.textContent = formatDaysRemaining(reminder.deadline);
       completedCheckbox.type = "checkbox";
@@ -785,32 +882,37 @@
     });
 
     addTaskButton.addEventListener("click", () => {
-      taskModal.hidden = false;
-      taskInput.focus();
+      openAddModal();
     });
 
     closeModalButton.addEventListener("click", () => {
-      taskModal.hidden = true;
-      form.reset();
+      closeTaskModal();
     });
 
     taskModal.addEventListener("click", (event) => {
       if (event.target === taskModal) {
-        taskModal.hidden = true;
-        form.reset();
+        closeTaskModal();
       }
     });
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !taskModal.hidden) {
-        taskModal.hidden = true;
-        form.reset();
+        closeTaskModal();
       }
     });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       clearError();
+
+      if (editingReminderId) {
+        await updateReminderDetails(editingReminderId, {
+          task: taskInput.value.trim(),
+          deadline: deadlineInput.value
+        });
+        closeTaskModal();
+        return;
+      }
 
       const reminder = {
         id: createReminderId(),
@@ -825,9 +927,8 @@
 
       remindersCache.push(reminder);
       pendingReminders.set(reminder.id, reminder);
-      taskModal.hidden = true;
+      closeTaskModal();
       renderReminders();
-      form.reset();
 
       if (firestoreIsConfigured) {
         try {
