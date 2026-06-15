@@ -282,6 +282,15 @@
       padding: 20px;
     }
 
+    .error-message {
+      margin: 0;
+      padding: 12px 24px;
+      color: #991b1b;
+      background: #fee2e2;
+      border-bottom: 1px solid #fecaca;
+      font-weight: 700;
+    }
+
     @media (max-width: 640px) {
       form {
         grid-template-columns: 1fr;
@@ -367,6 +376,8 @@
       </div>
     </header>
 
+    <p class="error-message" id="error-message" hidden></p>
+
     <div class="table-wrap" id="app-content" hidden>
       <table>
         <thead>
@@ -427,6 +438,7 @@
     const completedOnlyHeaders = document.querySelectorAll(".completed-only");
     const appContent = document.querySelector("#app-content");
     const userEmail = document.querySelector("#user-email");
+    const errorMessage = document.querySelector("#error-message");
     const signInButton = document.querySelector("#sign-in-button");
     const signOutButton = document.querySelector("#sign-out-button");
     const viewButton = document.querySelector("#view-button");
@@ -452,6 +464,7 @@
     let currentUser = null;
     let remindersCache = [];
     let unsubscribeReminders = null;
+    let localRemindersMigrated = false;
     const defaultReminders = [
       {
         id: "default-german-vocabulary-review",
@@ -533,8 +546,20 @@
         deadline: reminder.deadline,
         createdDate: reminder.createdDate || getTodayValue(),
         completedDate: reminder.completed ? reminder.completedDate || getTodayValue() : "",
+        ownerEmail: reminder.ownerEmail || "",
+        ownerUid: reminder.ownerUid || "",
         completed: Boolean(reminder.completed)
       }));
+    };
+
+    const showError = (message) => {
+      errorMessage.textContent = message;
+      errorMessage.hidden = false;
+    };
+
+    const clearError = () => {
+      errorMessage.textContent = "";
+      errorMessage.hidden = true;
     };
 
     const getLocalReminders = () => {
@@ -550,8 +575,35 @@
       return normalizeReminders(defaultReminders);
     };
 
+    const getSavedLocalReminders = () => {
+      const savedReminders = localStorage.getItem(storageKey);
+
+      if (!savedReminders) {
+        return [];
+      }
+
+      const reminders = normalizeReminders(JSON.parse(savedReminders));
+      saveLocalReminders(reminders);
+
+      return reminders;
+    };
+
     const saveLocalReminders = (reminders) => {
       localStorage.setItem(storageKey, JSON.stringify(reminders));
+    };
+
+    const migrateLocalRemindersToFirestore = async () => {
+      if (localRemindersMigrated || !firestoreIsConfigured) {
+        return;
+      }
+
+      localRemindersMigrated = true;
+
+      const savedLocalReminders = getSavedLocalReminders();
+
+      await Promise.all(savedLocalReminders.map((reminder) => {
+        return setDoc(doc(db, "tasks", reminder.id), reminder);
+      }));
     };
 
     const updateReminderCompletion = async (reminderId, completed) => {
@@ -655,6 +707,7 @@
       appContent.hidden = !canUseApp;
       viewButton.hidden = !canUseApp;
       addTaskButton.hidden = !canUseApp || currentView === "completed";
+      errorMessage.hidden = !errorMessage.textContent;
 
       if (!canUseApp) {
         todoBody.innerHTML = "";
@@ -691,7 +744,14 @@
 
     const startReminderSubscription = () => {
       stopReminderSubscription();
-      unsubscribeReminders = onSnapshot(remindersCollection, (snapshot) => {
+      unsubscribeReminders = onSnapshot(remindersCollection, async (snapshot) => {
+        if (snapshot.empty) {
+          await migrateLocalRemindersToFirestore();
+          remindersCache = [];
+          renderReminders();
+          return;
+        }
+
         remindersCache = normalizeReminders(snapshot.docs.map((taskDoc) => ({
           id: taskDoc.id,
           ...taskDoc.data()
@@ -717,11 +777,21 @@
     });
 
     signInButton.addEventListener("click", async () => {
-      await signInWithPopup(auth, googleProvider);
+      try {
+        clearError();
+        await signInWithPopup(auth, googleProvider);
+      } catch (error) {
+        showError(`Sign in failed: ${error.message}`);
+      }
     });
 
     signOutButton.addEventListener("click", async () => {
-      await signOut(auth);
+      try {
+        clearError();
+        await signOut(auth);
+      } catch (error) {
+        showError(`Sign out failed: ${error.message}`);
+      }
     });
 
     addTaskButton.addEventListener("click", () => {
@@ -750,6 +820,7 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
+      clearError();
 
       const reminder = {
         id: createReminderId(),
@@ -757,20 +828,27 @@
         deadline: deadlineInput.value,
         createdDate: getTodayValue(),
         completedDate: "",
+        ownerEmail: currentUser ? currentUser.email : "",
+        ownerUid: currentUser ? currentUser.uid : "",
         completed: false
       };
 
-      if (firestoreIsConfigured) {
-        await setDoc(doc(db, "tasks", reminder.id), reminder);
-      } else {
-        remindersCache.push(reminder);
-        saveLocalReminders(remindersCache);
-      }
-
+      remindersCache.push(reminder);
       taskModal.hidden = true;
       renderReminders();
-
       form.reset();
+
+      if (firestoreIsConfigured) {
+        try {
+          await setDoc(doc(db, "tasks", reminder.id), reminder);
+        } catch (error) {
+          remindersCache = remindersCache.filter((cachedReminder) => cachedReminder.id !== reminder.id);
+          renderReminders();
+          showError(`Task was not saved: ${error.message}`);
+        }
+      } else {
+        saveLocalReminders(remindersCache);
+      }
     });
 
     if (firestoreIsConfigured) {
