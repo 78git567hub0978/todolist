@@ -97,6 +97,31 @@
       background: #14532d;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .user-email {
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .auth-button {
+      min-height: 38px;
+    }
+
+    .sign-out-button {
+      background: #334e68;
+    }
+
+    .sign-out-button:hover {
+      background: #243b53;
+    }
+
     .table-wrap {
       overflow: visible;
     }
@@ -279,10 +304,15 @@
   <main>
     <header>
       <h1>To Do List</h1>
-      <button class="view-button" id="view-button" type="button">Completed Task</button>
+      <div class="header-actions">
+        <span class="user-email" id="user-email" hidden></span>
+        <button class="auth-button" id="sign-in-button" type="button">Sign in with Google</button>
+        <button class="auth-button sign-out-button" id="sign-out-button" type="button" hidden>Sign out</button>
+        <button class="view-button" id="view-button" type="button" hidden>Completed Task</button>
+      </div>
     </header>
 
-    <div class="table-wrap">
+    <div class="table-wrap" id="app-content" hidden>
       <table>
         <thead>
           <tr>
@@ -299,7 +329,7 @@
     </div>
   </main>
 
-  <button class="add-task-button" id="add-task-button" type="button" aria-label="Add task">+</button>
+  <button class="add-task-button" id="add-task-button" type="button" aria-label="Add task" hidden>+</button>
 
   <div class="modal-backdrop" id="task-modal" hidden>
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -320,6 +350,13 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
     import {
+      getAuth,
+      GoogleAuthProvider,
+      onAuthStateChanged,
+      signInWithPopup,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import {
       collection,
       doc,
       getFirestore,
@@ -333,6 +370,10 @@
     const deadlineInput = document.querySelector("#deadline-input");
     const todoBody = document.querySelector("#todo-body");
     const completedOnlyHeaders = document.querySelectorAll(".completed-only");
+    const appContent = document.querySelector("#app-content");
+    const userEmail = document.querySelector("#user-email");
+    const signInButton = document.querySelector("#sign-in-button");
+    const signOutButton = document.querySelector("#sign-out-button");
     const viewButton = document.querySelector("#view-button");
     const addTaskButton = document.querySelector("#add-task-button");
     const taskModal = document.querySelector("#task-modal");
@@ -348,10 +389,14 @@
     };
     const firestoreIsConfigured = !firebaseConfig.apiKey.startsWith("PASTE_");
     const app = firestoreIsConfigured ? initializeApp(firebaseConfig) : null;
+    const auth = firestoreIsConfigured ? getAuth(app) : null;
+    const googleProvider = firestoreIsConfigured ? new GoogleAuthProvider() : null;
     const db = firestoreIsConfigured ? getFirestore(app) : null;
     const remindersCollection = firestoreIsConfigured ? collection(db, "tasks") : null;
     let currentView = "active";
+    let currentUser = null;
     let remindersCache = [];
+    let unsubscribeReminders = null;
     const defaultReminders = [
       {
         id: "default-german-vocabulary-review",
@@ -544,6 +589,18 @@
     };
 
     const renderReminders = () => {
+      const canUseApp = !firestoreIsConfigured || Boolean(currentUser);
+
+      appContent.hidden = !canUseApp;
+      viewButton.hidden = !canUseApp;
+      addTaskButton.hidden = !canUseApp || currentView === "completed";
+
+      if (!canUseApp) {
+        todoBody.innerHTML = "";
+        taskModal.hidden = true;
+        return;
+      }
+
       const visibleReminders = remindersCache.filter((reminder) => {
         if (currentView === "completed") {
           return reminder.completed;
@@ -561,14 +618,49 @@
       document.querySelectorAll("td.completed-only").forEach((cell) => {
         cell.hidden = currentView !== "completed";
       });
-      addTaskButton.hidden = currentView === "completed";
       taskModal.hidden = currentView === "completed" || taskModal.hidden;
+    };
+
+    const stopReminderSubscription = () => {
+      if (unsubscribeReminders) {
+        unsubscribeReminders();
+        unsubscribeReminders = null;
+      }
+    };
+
+    const startReminderSubscription = () => {
+      stopReminderSubscription();
+      unsubscribeReminders = onSnapshot(remindersCollection, (snapshot) => {
+        remindersCache = normalizeReminders(snapshot.docs.map((taskDoc) => ({
+          id: taskDoc.id,
+          ...taskDoc.data()
+        })));
+        renderReminders();
+      }, (error) => {
+        console.error("Could not load Firestore tasks:", error);
+      });
+    };
+
+    const updateAuthUi = (user) => {
+      currentUser = user;
+      userEmail.textContent = user ? user.email : "";
+      userEmail.hidden = !user;
+      signInButton.hidden = Boolean(user) || !firestoreIsConfigured;
+      signOutButton.hidden = !user || !firestoreIsConfigured;
     };
 
     viewButton.addEventListener("click", () => {
       currentView = currentView === "completed" ? "active" : "completed";
       taskModal.hidden = true;
       renderReminders();
+    });
+
+    signInButton.addEventListener("click", async () => {
+      await signInWithPopup(auth, googleProvider);
+    });
+
+    signOutButton.addEventListener("click", async () => {
+      await signOut(auth);
     });
 
     addTaskButton.addEventListener("click", () => {
@@ -621,14 +713,22 @@
     });
 
     if (firestoreIsConfigured) {
-      onSnapshot(remindersCollection, (snapshot) => {
-        remindersCache = normalizeReminders(snapshot.docs.map((taskDoc) => ({
-          id: taskDoc.id,
-          ...taskDoc.data()
-        })));
+      onAuthStateChanged(auth, (user) => {
+        updateAuthUi(user);
+
+        if (user) {
+          startReminderSubscription();
+        } else {
+          stopReminderSubscription();
+          remindersCache = [];
+          currentView = "active";
+          taskModal.hidden = true;
+        }
+
         renderReminders();
       });
     } else {
+      updateAuthUi(null);
       remindersCache = getLocalReminders();
       renderReminders();
     }
