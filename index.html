@@ -784,12 +784,27 @@
         const link = document.createElement("a");
         const trailingPunctuation = match.match(/[.,;:!?)]$/)?.[0] || "";
         const linkText = trailingPunctuation ? match.slice(0, -1) : match;
-        const href = linkText.startsWith("http") || linkText.startsWith("file://") ? linkText : `https://${linkText}`;
+        const isFileLink = linkText.startsWith("file://");
+        const href = linkText.startsWith("http") || isFileLink ? linkText : `https://${linkText}`;
 
         link.href = href;
         link.textContent = linkText;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
+
+        if (isFileLink && window.location.protocol !== "file:") {
+          link.addEventListener("click", async (event) => {
+            event.preventDefault();
+
+            try {
+              await navigator.clipboard.writeText(linkText);
+              showError("Browsers block file links from websites. I copied the file link instead.");
+            } catch (error) {
+              showError("Browsers block file links from websites. Copy the file link and open it from Finder or a local browser window.");
+            }
+          });
+        }
+
         element.append(link);
         element.append(document.createTextNode(trailingPunctuation));
 
