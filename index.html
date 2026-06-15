@@ -222,12 +222,31 @@
 
     .task-name {
       min-width: 0;
-      white-space: pre-wrap;
+      display: block;
     }
 
     .task-name a {
       color: #000080;
       font-weight: 700;
+    }
+
+    .task-primary-line {
+      display: block;
+      font-size: 16px;
+      font-weight: 700;
+      white-space: pre-wrap;
+    }
+
+    .task-secondary-line {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: pre-wrap;
+    }
+
+    .task-secondary-line a {
+      font-weight: 400;
     }
 
     .edit-task-button {
@@ -730,6 +749,23 @@
       element.append(document.createTextNode(text.slice(lastIndex)));
     };
 
+    const appendTaskText = (element, text) => {
+      const lines = text.split("\n");
+      const primaryLine = document.createElement("span");
+
+      primaryLine.className = "task-primary-line";
+      appendLinkedText(primaryLine, lines[0] || "");
+      element.append(primaryLine);
+
+      lines.slice(1).forEach((line) => {
+        const secondaryLine = document.createElement("span");
+
+        secondaryLine.className = "task-secondary-line";
+        appendLinkedText(secondaryLine, line);
+        element.append(secondaryLine);
+      });
+    };
+
     const addReminderRow = (reminder) => {
       const row = document.createElement("tr");
       const taskCell = document.createElement("td");
@@ -742,7 +778,7 @@
       const completedCheckbox = document.createElement("input");
 
       taskName.className = "task-name";
-      appendLinkedText(taskName, reminder.task);
+      appendTaskText(taskName, reminder.task);
       editButton.type = "button";
       editButton.className = "edit-task-button";
       editButton.textContent = "✎";
