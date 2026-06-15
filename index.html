@@ -215,6 +215,11 @@
       min-width: 0;
     }
 
+    .task-name a {
+      color: #000080;
+      font-weight: 700;
+    }
+
     .edit-task-button {
       min-height: 32px;
       flex: 0 0 auto;
@@ -690,6 +695,28 @@
       }
     };
 
+    const appendLinkedText = (element, text) => {
+      const linkPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+      let lastIndex = 0;
+
+      text.replace(linkPattern, (match, url, offset) => {
+        element.append(document.createTextNode(text.slice(lastIndex, offset)));
+
+        const link = document.createElement("a");
+        const href = match.startsWith("http") ? match : `https://${match}`;
+
+        link.href = href;
+        link.textContent = match;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        element.append(link);
+
+        lastIndex = offset + match.length;
+      });
+
+      element.append(document.createTextNode(text.slice(lastIndex)));
+    };
+
     const addReminderRow = (reminder) => {
       const row = document.createElement("tr");
       const taskCell = document.createElement("td");
@@ -701,8 +728,8 @@
       const completedCell = document.createElement("td");
       const completedCheckbox = document.createElement("input");
 
-      taskName.textContent = reminder.task;
       taskName.className = "task-name";
+      appendLinkedText(taskName, reminder.task);
       editButton.type = "button";
       editButton.className = "edit-task-button";
       editButton.textContent = "✎";
