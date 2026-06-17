@@ -117,13 +117,13 @@
 
     .view-button {
       flex: 0 0 auto;
-      border: 1px solid #86efac;
-      background: #bbf7d0;
-      color: #14532d;
+      border: 1px solid #cbd5e1;
+      background: #e2e8f0;
+      color: #334155;
     }
 
     .view-button:hover {
-      background: #86efac;
+      background: #cbd5e1;
     }
 
     .header-actions {
@@ -224,6 +224,10 @@
 
     .overdue-row {
       background: #ef4444;
+    }
+
+    .completed-row {
+      background: #bbf7d0;
     }
 
     .completed-checkbox {
@@ -398,7 +402,7 @@
         <span class="user-email" id="user-email" hidden></span>
         <button class="auth-button" id="sign-in-button" type="button">Sign in with Google</button>
         <button class="auth-button sign-out-button" id="sign-out-button" type="button" hidden>Sign out</button>
-        <button class="view-button" id="view-button" type="button" hidden>Completed Task</button>
+        <button class="view-button" id="view-button" type="button" hidden>Achive</button>
       </div>
     </header>
 
@@ -876,6 +880,10 @@
         row.classList.add("overdue-row");
       }
 
+      if (reminder.completed) {
+        row.classList.add("completed-row");
+      }
+
       row.dataset.deadline = reminder.deadline;
       row.append(taskCell, deadlineCell, daysRemainingCell);
 
@@ -896,6 +904,14 @@
 
     const sortReminders = (reminders) => {
       return [...reminders].sort((first, second) => {
+        if (first.completed && !second.completed) {
+          return 1;
+        }
+
+        if (!first.completed && second.completed) {
+          return -1;
+        }
+
         if (isDueToday(first.deadline) && !isDueToday(second.deadline)) {
           return -1;
         }
@@ -942,12 +958,12 @@
           return reminder.completed;
         }
 
-        return !reminder.completed;
+        return true;
       });
 
       todoBody.innerHTML = "";
       sortReminders(visibleReminders).forEach(addReminderRow);
-      viewButton.textContent = currentView === "completed" ? "To Do List" : "Completed Task";
+      viewButton.textContent = currentView === "completed" ? "To Do List" : "Achive";
       completedOnlyHeaders.forEach((header) => {
         header.hidden = currentView !== "completed";
       });
