@@ -1005,7 +1005,7 @@
       taskCellContent.append(taskName, editButton);
       taskCell.append(taskCellContent);
       deadlineCell.textContent = formatDeadline(reminder.deadline);
-      daysRemainingCell.textContent = formatDaysRemaining(reminder.deadline);
+      daysRemainingCell.textContent = reminder.completed ? "Completed" : formatDaysRemaining(reminder.deadline);
       completedCheckbox.type = "checkbox";
       completedCheckbox.className = "completed-checkbox";
       completedCheckbox.checked = reminder.completed;
