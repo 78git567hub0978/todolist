@@ -468,7 +468,7 @@
           <tr>
             <th>Task</th>
             <th>Deadline</th>
-            <th>Days Remaining</th>
+            <th>Due</th>
             <th class="completed-only">Date Created</th>
             <th class="completed-only">Date Completed</th>
             <th class="completed-column">Completed</th>
@@ -643,6 +643,18 @@
 
       if (days === null) {
         return "";
+      }
+
+      if (days === 0) {
+        return "Today";
+      }
+
+      if (days === -1) {
+        return "1 day ago";
+      }
+
+      if (days < -1) {
+        return `${Math.abs(days)} days ago`;
       }
 
       if (days === 1) {
@@ -1077,6 +1089,22 @@
           return -1;
         }
 
+        if (isOverdue(first.deadline) && !isOverdue(second.deadline)) {
+          return -1;
+        }
+
+        if (!isOverdue(first.deadline) && isOverdue(second.deadline)) {
+          return 1;
+        }
+
+        if (isDueToday(first.deadline) && !isDueToday(second.deadline)) {
+          return -1;
+        }
+
+        if (!isDueToday(first.deadline) && isDueToday(second.deadline)) {
+          return 1;
+        }
+
         const firstCreatedDate = getDateFromValue(first.createdDate);
         const secondCreatedDate = getDateFromValue(second.createdDate);
 
@@ -1091,14 +1119,6 @@
 
         if (firstCreatedDate && secondCreatedDate && firstCreatedDate - secondCreatedDate !== 0) {
           return secondCreatedDate - firstCreatedDate;
-        }
-
-        if (isDueToday(first.deadline) && !isDueToday(second.deadline)) {
-          return -1;
-        }
-
-        if (!isDueToday(first.deadline) && isDueToday(second.deadline)) {
-          return 1;
         }
 
         const firstDate = getDateFromValue(first.deadline);
