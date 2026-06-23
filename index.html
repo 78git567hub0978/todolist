@@ -164,7 +164,8 @@
 
     table {
       width: 100%;
-      border-collapse: collapse;
+      border-collapse: separate;
+      border-spacing: 0 6px;
       table-layout: fixed;
     }
 
@@ -172,7 +173,7 @@
     td {
       padding: 14px 12px;
       text-align: left;
-      border-bottom: 4px solid #ffffff;
+      border-bottom: 0;
       vertical-align: top;
       overflow-wrap: anywhere;
       font-size: 14px;
@@ -227,19 +228,27 @@
       line-height: 1.25;
     }
 
-    tr:last-child td {
-      border-bottom: 0;
+    tbody td:first-child {
+      border-radius: 10px 0 0 10px;
     }
 
-    .today-row {
+    tbody td:last-child {
+      border-radius: 0 10px 10px 0;
+    }
+
+    .today-row td {
       background: #fecaca;
     }
 
-    .overdue-row {
+    .overdue-row td {
       background: #ef4444;
     }
 
-    .completed-row {
+    .future-row td {
+      background: #bfdbfe;
+    }
+
+    .completed-row td {
       background: #bbf7d0;
     }
 
@@ -1077,6 +1086,10 @@
 
       if (isOverdue(reminder.deadline)) {
         row.classList.add("overdue-row");
+      }
+
+      if (getDaysRemaining(reminder.deadline) > 0) {
+        row.classList.add("future-row");
       }
 
       if (reminder.completed) {
